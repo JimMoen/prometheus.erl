@@ -90,10 +90,8 @@ registry_collect_callback(Fd, Registry, Collector) ->
   prometheus_collector:collect_mf(Registry, Collector, Callback).
 
 %% @private
-emit_mf_prologue(Fd, #'MetricFamily'{name=Name, help=Help, type=Type}) ->
-  Bytes = io_lib:format("# TYPE ~s ~s\n# HELP ~s ~s\n",
-                        [Name, string_type(Type),
-                         Name, escape_metric_help(Help)]),
+emit_mf_prologue(Fd, #'MetricFamily'{name=Name, type=Type}) ->
+  Bytes = io_lib:format("# TYPE ~s ~s\n",[Name, string_type(Type)]),
   file:write(Fd, Bytes).
 
 %% @private

@@ -34,6 +34,8 @@
 -include("prometheus.hrl").
 -include("prometheus_model.hrl").
 
+-compile({nowarn_unused_function, [{escape_metric_help, 1}]}).
+
 -behaviour(prometheus_format).
 
 %%====================================================================

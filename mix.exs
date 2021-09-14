@@ -4,9 +4,12 @@ defmodule Prometheus.Mixfile do
   def project do
     [
       app: :prometheus,
-      version: "3.1.2",
+      version: "3.1.3",
       description: description(),
-      package: package()
+      package: package(),
+      elixir: "~> 1.12",
+      start_permanent: Mix.env() == :prod,
+      deps: deps()
     ]
   end
 
@@ -14,6 +17,16 @@ defmodule Prometheus.Mixfile do
     """
     Prometheus monitoring system and time series database client in Erlang.
     """
+  end
+
+  def application do
+    [
+      mod: {:prometheus, []}
+    ]
+  end
+
+  defp deps do
+    []
   end
 
   defp package do

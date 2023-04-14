@@ -1,5 +1,3 @@
-
-
 # Prometheus.io client for Erlang #
 
 Copyright (c) 2016 Ilya Khaprov <<i.khaprov@gmail.com>>.
@@ -8,8 +6,7 @@ __Version:__ 3.1.0
 
 [![Hex.pm](https://img.shields.io/hexpm/v/prometheus.svg?maxAge=2592000?style=plastic)](https://hex.pm/packages/prometheus)
 [![Hex.pm](https://img.shields.io/hexpm/dt/prometheus.svg?maxAge=2592000)](https://hex.pm/packages/prometheus)
-[![Build Status](https://travis-ci.org/deadtrickster/prometheus.erl.svg?branch=version-3)](https://travis-ci.org/deadtrickster/prometheus.erl)
-[![Coverage Status](https://coveralls.io/repos/github/deadtrickster/prometheus.erl/badge.svg?branch=master)](https://coveralls.io/github/deadtrickster/prometheus.erl?branch=master)
+[![Build status](https://github.com/emqx/prometheus.erl/actions/workflows/main.yml/badge.svg)](https://github.com/emqx/prometheus.erl/actions/workflows/main.yml)
 
 [Prometheus.io](https://prometheus.io) monitoring system and time series database client in Erlang.
 

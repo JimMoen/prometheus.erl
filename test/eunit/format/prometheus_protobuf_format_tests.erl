@@ -11,6 +11,8 @@ prometheus_format_test_() ->
     fun test_dcounter/1,
     fun test_summary/1,
     fun test_dsummary/1,
+    fun test_quantile_summary/1,
+    fun test_quantile_dsummary/1,
     fun test_histogram/1,
     fun test_dhistogram/1]}.
 
@@ -42,12 +44,9 @@ test_counter(_) ->
 
 test_dcounter(_) ->
   prometheus_counter:new([{name, dtest}, {help, "qw\"\\e"}]),
-  prometheus_counter:dinc(dtest, 1.5),
-  prometheus_counter:dinc(dtest, 3.5),
-  prometheus_counter:dinc(dtest, 1.5),
-
-  %% dobserve is async so lets make sure gen_server processed our request
-  timer:sleep(10),
+  prometheus_counter:inc(dtest, 1.5),
+  prometheus_counter:inc(dtest, 3.5),
+  prometheus_counter:inc(dtest, 1.5),
 
   Expected = <<29, 10, 5, 100, 116, 101, 115, 116, 18, 5, 113, 119, 34, 92, 101, 24, 0,
                34, 11, 26, 9, 9, 0, 0, 0, 0, 0, 0, 26, 64>>,
@@ -69,13 +68,43 @@ test_summary(_) ->
 
 test_dsummary(_) ->
   prometheus_summary:new([{name, dsummary}, {help, "qwe"}]),
-  prometheus_summary:dobserve(dsummary, 1.5),
-  prometheus_summary:dobserve(dsummary, 2.7),
+  prometheus_summary:observe(dsummary, 1.5),
+  prometheus_summary:observe(dsummary, 2.7),
 
-  %% dobserve is async so lets make sure gen_server processed our request
-  timer:sleep(10),
   Expected = <<32, 10, 8, 100, 115, 117, 109, 109, 97, 114, 121, 18, 3, 113, 119, 101,
                24, 2, 34, 13, 34, 11, 8, 2, 17, 205, 204, 204, 204, 204, 204, 16, 64>>,
+  ?_assertEqual(Expected,
+                prometheus_protobuf_format:format()).
+
+
+test_quantile_summary(_) ->
+  prometheus_quantile_summary:new([{name, orders_quantile_summary},
+                          {help, "Track orders count/total sum"}]),
+  prometheus_quantile_summary:observe(orders_quantile_summary,  10),
+  prometheus_quantile_summary:observe(orders_quantile_summary,  15),
+
+  Expected = <<132, 1, 10, 23, 111, 114, 100, 101, 114, 115, 95, 113, 117, 97, 110, 116,
+               105, 108, 101, 95, 115, 117, 109, 109, 97, 114, 121, 18, 28, 84, 114, 97,
+               99, 107, 32, 111, 114, 100, 101, 114, 115, 32, 99, 111, 117, 110, 116, 47,
+               116, 111, 116, 97, 108, 32, 115, 117, 109, 24, 2, 34, 73, 34, 71, 8, 2, 17, 0,
+               0, 0, 0, 0, 0, 57, 64, 26, 18, 9, 0, 0, 0, 0, 0, 0, 224, 63, 17, 0, 0, 0, 0, 0, 0,
+               46, 64, 26, 18, 9, 205, 204, 204, 204, 204, 204, 236, 63, 17, 0, 0, 0, 0, 0, 0,
+               46, 64, 26, 18, 9, 102, 102, 102, 102, 102, 102, 238, 63, 17, 0, 0, 0, 0, 0, 0,
+               46, 64>>,
+  ?_assertEqual(Expected,
+                prometheus_protobuf_format:format()).
+
+test_quantile_dsummary(_) ->
+  prometheus_quantile_summary:new([{name, quantile_dsummary}, {help, "qwe"}]),
+  prometheus_quantile_summary:observe(quantile_dsummary, 1.5),
+  prometheus_quantile_summary:observe(quantile_dsummary, 2.7),
+
+  Expected = <<101, 10, 17, 113, 117, 97, 110, 116, 105, 108, 101, 95, 100, 115, 117, 109,
+               109, 97, 114, 121, 18, 3, 113, 119, 101, 24, 2, 34, 73, 34, 71, 8, 2, 17, 205,
+               204, 204, 204, 204, 204, 16, 64, 26, 18, 9, 0, 0, 0, 0, 0, 0, 224, 63, 17, 154,
+               153, 153, 153, 153, 153, 5, 64, 26, 18, 9, 205, 204, 204, 204, 204, 204,
+               236, 63, 17, 154, 153, 153, 153, 153, 153, 5, 64, 26, 18, 9, 102, 102, 102,
+               102, 102, 102, 238, 63, 17, 154, 153, 153, 153, 153, 153, 5, 64>>,
   ?_assertEqual(Expected,
                 prometheus_protobuf_format:format()).
 
@@ -115,15 +144,13 @@ test_dhistogram(_) ->
                             {buckets, [100, 300, 500, 750, 1000]},
                             {help, "Http Request execution time"},
                             {duration_unit, false}]),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 500.2),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 150.4),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 450.5),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 850.3),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 750.9),
-  prometheus_histogram:dobserve(http_request_duration_milliseconds, [post], 1650.23),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 500.2),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 150.4),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 450.5),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 850.3),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 750.9),
+  prometheus_histogram:observe(http_request_duration_milliseconds, [post], 1650.23),
 
-  %% dobserve is async so lets make sure gen_server processed our request
-  timer:sleep(10),
   Expected = <<176, 1, 10, 34, 104, 116, 116, 112, 95, 114, 101, 113, 117, 101, 115,
                116, 95, 100, 117, 114, 97, 116, 105, 111, 110, 95, 109, 105, 108,
                108, 105, 115, 101, 99, 111, 110, 100, 115, 18, 27, 72, 116, 116, 112,

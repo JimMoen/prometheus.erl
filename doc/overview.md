@@ -1,11 +1,11 @@
-@copyright 2016 Ilya Khaprov <<i.khaprov@gmail.com>>.
+@copyright 2016,2017 Ilya Khaprov <<i.khaprov@gmail.com>>.
 @title Prometheus.io client for Erlang
-@version 3.1.0
+@version 4.10.0
 
 @doc
 [![Hex.pm](https://img.shields.io/hexpm/v/prometheus.svg?maxAge=2592000?style=plastic)](https://hex.pm/packages/prometheus)
 [![Hex.pm](https://img.shields.io/hexpm/dt/prometheus.svg?maxAge=2592000)](https://hex.pm/packages/prometheus)
-[![Build Status](https://travis-ci.org/deadtrickster/prometheus.erl.svg?branch=version-3)](https://travis-ci.org/deadtrickster/prometheus.erl)
+[![Build Status](https://img.shields.io/github/workflow/status/deadtrickster/prometheus.erl/CI?style=flat)](https://github.com/deadtrickster/prometheus.erl/actions/workflows/main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/deadtrickster/prometheus.erl/badge.svg?branch=master)](https://coveralls.io/github/deadtrickster/prometheus.erl?branch=master)
 
 [Prometheus.io](https://prometheus.io) monitoring system and time series database client in Erlang.
@@ -16,19 +16,46 @@
  - [Slack](https://elixir-slackin.herokuapp.com/): #prometheus channel - [Browser](https://elixir-lang.slack.com/messages/prometheus) or App(slack://elixir-lang.slack.com/messages/prometheus).
 
 ## Integrations
+- [Cowboy1/2 Exporters and Cowboy2 instrumenter](https://hex.pm/packages/prometheus_cowboy)
+- [Opencensus.io integration](https://github.com/deadtrickster/opencensus-erlang-prometheus)
 - [Ecto Instrumenter](https://hex.pm/packages/prometheus_ecto)
 - [Elixir client](https://github.com/deadtrickster/prometheus.ex)
 - [Elixir plugs Instrumenters and Exporter](https://hex.pm/packages/prometheus_plugs)
+- [Extatus - App to report metrics to Prometheus from Elixir GenServers](https://github.com/gmtprime/extatus)
 - [Fuse plugin](https://github.com/jlouis/fuse#fuse_stats_prometheus)
-- [OS process info Collector](https://hex.pm/packages/prometheus_process_collector) (linux-only)
+- [Inets HTTPD Exporter](https://github.com/deadtrickster/prometheus_httpd)
+- [OS process info Collector](https://hex.pm/packages/prometheus_process_collector) (linux, freebsd, macos)
 - [Phoenix Instrumenter](https://hex.pm/packages/prometheus_phoenix)
 - [RabbitMQ Exporter](https://github.com/deadtrickster/prometheus_rabbitmq_exporter).
+
+## Dashboards
+
+- [Beam Dashboards](https://github.com/deadtrickster/beam-dashboards).
+
+## Blogs
+
+- [Install, Monitor Erlang Releases in Kubernetes with Helm + Prometheus](https://spacetimeinsight.com/installing-monitoring-erlang-releases-kubernetes-helm-prometheus/)
+- [Monitoring Elixir apps in 2016: Prometheus and Grafana](https://aldusleaf.org/monitoring-elixir-apps-in-2016-prometheus-and-grafana/)
+- [A Simple Erlang Application, with Prometheus](http://markbucciarelli.com/2016-11-23_a_simple_erlang_application_with_prometheus.html).
 
 ## Erlang VM &amp; OTP Collectors
 - {@link prometheus_vm_memory_collector. Memory Collector}
 - {@link prometheus_mnesia_collector. Mnesia Collector}
 - {@link prometheus_vm_statistics_collector. Statistics Collector}
 - {@link prometheus_vm_system_info_collector. System Information Collector}.
+
+## Compatibility
+
+### OTP versions
+Version 3.x works on OTP18+. For older version (oldest tested is R16B03) please use
+[3.x-pre18 branch](https://github.com/deadtrickster/prometheus.erl/tree/3.x-pre18).
+3.x-pre18 will work on all OTP releases starting from R16B03 and its beam will recompile itself to accommodate.
+For example, this branch is used by [RabbitMQ Exporter](https://github.com/deadtrickster/prometheus_rabbitmq_exporter) 3.6.x
+that should be compatible with all versions starting from R16B03.
+
+### Build tools
+Rebar3 and rebar2 are supported.
+
 
 ## Example Console Session
 
@@ -47,7 +74,7 @@ prometheus_counter:new([{name, http_requests_total}, {help, "Http request count"
 prometheus_summary:new([{name, orders}, {help, "Track orders count/total sum"}]).
 prometheus_histogram:new([{name, http_request_duration_milliseconds},
                                {labels, [method]},
-                               {bounds, [100, 300, 500, 750, 1000]},
+                               {buckets, [100, 300, 500, 750, 1000]},
                                {help, "Http Request execution time"}]).
 </pre>
 Use metrics:
@@ -121,6 +148,7 @@ API can be grouped like this:
 - {@link prometheus_gauge} - gauge metric, to report instantaneous values;
 - {@link prometheus_histogram} - histogram metric, to track distributions of events;
 - {@link prometheus_summary} - summary metric, to track the size of events;
+- {@link prometheus_boolean} - boolean metric, to track the state of something;
 - {@link prometheus_registry} - working with Prometheus registries.
 
 All metrics created via `new/1' or `declare/1'. The difference is that `new/1' actually wants metric to be
@@ -163,8 +191,22 @@ You'll use that if you want to create custom collector.
 ## Configuration
 
 Prometheus.erl supports standard Erlang app configuration.
-- `default_collectors` - List of custom collectors modules to be registered automatically. If undefined list of all modules implementing `prometheus_collector` behaviour will be used.
-- `default_metrics` - List of metrics to be registered during app startup. Metric format: `{Registry, Metric, Spec}` where `Registry` is registry name, `Metric` is metric type (prometheus_counter, prometheus_gauge ... etc), `Spec` is a list to be passed to `Metric:register/2`.
+- `collectors` - List of custom collectors modules to be registered automatically. If undefined list of all modules implementing `prometheus_collector` behaviour will be used.
+- `default_metrics` - List of metrics to be registered during app startup. Metric format: `{Type, Spec}` where `Type` is a metric type (counter, gauge, etc), `Spec` is a list to be passed to `Metric:declare/1`. Deprecated format `{Registry, Metric, Spec}` also supported.
+
+Collectors config also supports "alias" option `default`. When used these collectors will be registered:
+<pre>
+prometheus_boolean,
+prometheus_counter,
+prometheus_gauge,
+prometheus_histogram,
+prometheus_mnesia_collector,
+prometheus_summary,
+prometheus_vm_memory_collector,
+prometheus_vm_statistics_collector,
+prometheus_vm_system_info_collector
+</pre>
+
 
 ## Collectors & Exporters Conventions
 

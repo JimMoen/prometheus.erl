@@ -12,29 +12,28 @@ prometheus_format_test_() ->
     fun test_errors/1,
     fun test_set/1,
     fun test_inc/1,
-    fun test_dinc/1,
     fun test_dec/1,
-    fun test_ddec/1,
     fun test_set_to_current_time/1,
     fun test_track_inprogress/1,
     fun test_set_duration_seconds/1,
     fun test_set_duration_milliseconds/1,
+    fun test_deregister/1,
     fun test_remove/1,
-    fun test_undefined_value/1]}.
+    fun test_default_value/1,
+    fun test_values/1,
+    fun test_collector1/1,
+    fun test_collector2/1,
+    fun test_collector3/1]}.
 
 test_registration(_)->
   Name = pool_size,
   SpecWithRegistry = [{name, Name},
                       {help, ""},
                       {registry, qwe}],
-  SpecWithoutRegistry = [{name, Name},
-                         {help, ""}],
   [?_assertEqual(true,
                  prometheus_gauge:declare(SpecWithRegistry)),
-   ?_assertEqual(false,
-                 prometheus_gauge:declare(SpecWithoutRegistry, qwe)),
    ?_assertError({mf_already_exists, {qwe, Name}, "Consider using declare instead."},
-                 prometheus_gauge:new(SpecWithoutRegistry, qwe))].
+                 prometheus_gauge:new(SpecWithRegistry))].
 
 test_errors(_) ->
   prometheus_gauge:new([{name, with_label}, {labels, [label]}, {help, ""}]),
@@ -48,24 +47,12 @@ test_errors(_) ->
                  prometheus_gauge:new([{name, "qwe"}, {help, 12}])),
 
    %% gauge specific errors,
-   ?_assertError({invalid_value, "qwe", "set accepts only numbers"},
+   ?_assertError({invalid_value, "qwe", "set accepts only numbers and 'undefined'"},
                  prometheus_gauge:set(pool_size, "qwe")),
-   ?_assertError({invalid_value, 1.5, "inc accepts only integers"},
-                 prometheus_gauge:inc(pool_size, 1.5)),
-   ?_assertError({invalid_value, "qwe", "dinc accepts only numbers"},
-                 prometheus_gauge:dinc(pool_size, [], "qwe")),
-   ?_assertError({invalid_value, 1.5, "dec accepts only integers"},
-                 prometheus_gauge:dec(pool_size, 1.5)),
-   ?_assertError({invalid_value, "qwe", "dec accepts only integers"},
+   ?_assertError({invalid_value, "qwe", "inc accepts only numbers"},
+                 prometheus_gauge:inc(pool_size, [], "qwe")),
+   ?_assertError({invalid_value, "qwe", "dec accepts only numbers"},
                  prometheus_gauge:dec(pool_size, [], "qwe")),
-   ?_assertError({invalid_value, 1.5, "dec accepts only integers"},
-                 prometheus_gauge:dec(default, pool_size, [], 1.5)),
-   ?_assertError({invalid_value, qwe, "ddec accepts only numbers"},
-                 prometheus_gauge:ddec(pool_size, qwe)),
-   ?_assertError({invalid_value, "qwe", "ddec accepts only numbers"},
-                 prometheus_gauge:ddec(pool_size, [], "qwe")),
-   ?_assertError({invalid_value, "qwe", "ddec accepts only numbers"},
-                 prometheus_gauge:ddec(default, pool_size, [], "qwe")),
    ?_assertError({invalid_value, "qwe", "track_inprogress accepts only functions"},
                  prometheus_gauge:track_inprogress(pool_size, "qwe")),
    ?_assertError({invalid_value, "qwe", "set_duration accepts only functions"},
@@ -123,57 +110,19 @@ test_inc(_) ->
   prometheus_gauge:new([{name, temperature}, {help, ""}]),
   prometheus_gauge:inc(pool_size, [mongodb]),
   prometheus_gauge:inc(pool_size, [mongodb], 3),
+  prometheus_gauge:inc(pool_size, [mongodb], 3.5),
   prometheus_gauge:inc(temperature),
   prometheus_gauge:inc(temperature, 3),
+  prometheus_gauge:inc(temperature, 3.5),
 
   PSValue = prometheus_gauge:value(pool_size, [mongodb]),
   TValue = prometheus_gauge:value(temperature),
-  [?_assertEqual(4, PSValue),
-   ?_assertEqual(4, TValue)].
 
-test_dinc(_) ->
-  prometheus_gauge:new([{name, pool_size}, {labels, [client]}, {help, ""}]),
-  prometheus_gauge:new([{name, temperature}, {help, ""}]),
-  prometheus_gauge:dinc(pool_size, [mongodb]),
-  prometheus_gauge:dinc(pool_size, [mongodb], 3.5),
-  prometheus_gauge:dinc(temperature),
-  prometheus_gauge:dinc(temperature, 3.5),
-
-  %% dinc is async so lets make sure gen_server processed our increment request
-  timer:sleep(10),
-
-  PSValue = prometheus_gauge:value(pool_size, [mongodb]),
-  TValue = prometheus_gauge:value(temperature),
-  [?_assertEqual(4.5, PSValue),
-   ?_assertEqual(4.5, TValue)].
-
-call_cast_test() ->
-  prometheus_gauge:declare([{name, cast}, {help, ""}]),
-  prometheus_gauge:declare([{name, call}, {help, ""}, {call_timeout, 1000}]),
-  prometheus_gauge:dinc(cast),
-  prometheus_gauge:dinc(call),
-
-  ?assertEqual(1, prometheus_gauge:value(cast)),
-  ?assertEqual(1, prometheus_gauge:value(call)),
-
-  try
-    sys:suspend(prometheus_gauge),
-
-    prometheus_gauge:dinc(cast),
-    ?assertException(exit, {timeout, _}, prometheus_gauge:dinc(call)),
-
-    ?assertEqual(1, prometheus_gauge:value(cast)),
-    ?assertEqual(1, prometheus_gauge:value(call))
-
-  after
-    sys:resume(prometheus_gauge)
-  end,
-
-  %% wait for genserver
-  timer:sleep(10),
-
-  ?assertEqual(2, prometheus_gauge:value(cast)),
-  ?assertEqual(2, prometheus_gauge:value(call)).
+  prometheus_gauge:reset(pool_size, [mongodb]),
+  RValue = prometheus_gauge:value(pool_size, [mongodb]),
+  [?_assertEqual(7.5, PSValue),
+   ?_assertEqual(7.5, TValue),
+   ?_assertEqual(0, RValue)].
 
 test_dec(_) ->
   prometheus_gauge:new([{name, pool_size}, {labels, [client]}, {help, ""}]),
@@ -182,32 +131,21 @@ test_dec(_) ->
   prometheus_gauge:inc(pool_size, [mongodb], 10),
   prometheus_gauge:dec(pool_size, [mongodb]),
   prometheus_gauge:dec(pool_size, [mongodb], 6),
+  prometheus_gauge:dec(pool_size, [mongodb], 0.5),
   prometheus_gauge:inc(temperature),
   prometheus_gauge:inc(temperature, 10),
   prometheus_gauge:dec(temperature),
   prometheus_gauge:dec(temperature, 6),
+  prometheus_gauge:dec(temperature, 2.7),
 
   PSValue = prometheus_gauge:value(pool_size, [mongodb]),
   TValue = prometheus_gauge:value(temperature),
-  [?_assertEqual(4, PSValue),
-   ?_assertEqual(4, TValue)].
 
-test_ddec(_) ->
-  prometheus_gauge:new([{name, pool_size}, {labels, [client]}, {help, ""}]),
-  prometheus_gauge:new([{name, temperature}, {help, ""}]),
-  prometheus_gauge:ddec(pool_size, [mongodb]),
-  prometheus_gauge:ddec(pool_size, [mongodb], 6.5),
-  prometheus_gauge:ddec(temperature),
-  prometheus_gauge:ddec(temperature, 6.5),
-  prometheus_gauge:ddec(default, temperature, [], 6.5),
-
-  %% ddec is async so lets make sure gen_server processed our increment request
-  timer:sleep(10),
-
-  PSValue = prometheus_gauge:value(pool_size, [mongodb]),
-  TValue = prometheus_gauge:value(temperature),
-  [?_assertEqual(-7.5, PSValue),
-   ?_assertEqual(-14.0, TValue)].
+  prometheus_gauge:reset(pool_size, [mongodb]),
+  RValue = prometheus_gauge:value(pool_size, [mongodb]),
+  [?_assertMatch(_ when PSValue > 3.4 andalso PSValue < 3.6, PSValue),
+   ?_assertMatch(_ when TValue > 1.2 andalso TValue < 1.4, TValue),
+   ?_assertEqual(0, RValue)].
 
 test_set_to_current_time(_) ->
   prometheus_gauge:new([{name, cur_time}, {labels, []}, {help, ""}]),
@@ -276,17 +214,31 @@ test_set_duration_milliseconds(_) ->
   catch _:_ -> ok
   end,
 
-  timer:sleep(10),
   ValueE = prometheus_gauge:value(gauge),
 
   [?_assertMatch(1, ValueF),
    ?_assertMatch(true, 900 < Value andalso Value < 1200),
    ?_assertMatch(true, 0 < ValueE andalso ValueE < 100)].
 
+test_deregister(_) ->
+  prometheus_gauge:new([{name, pool_size},
+                        {labels, [pool]},
+                        {help, "Http request pool size"}]),
+  prometheus_gauge:new([{name, simple_gauge}, {help, ""}]),
+
+  prometheus_gauge:inc(pool_size, [mongodb]),
+  prometheus_gauge:inc(simple_gauge),
+
+  [?_assertMatch({true, true}, prometheus_gauge:deregister(pool_size)),
+   ?_assertMatch({false, false}, prometheus_gauge:deregister(pool_size)),
+   ?_assertEqual(2, length(ets:tab2list(prometheus_gauge_table))),
+   ?_assertEqual(1, prometheus_gauge:value(simple_gauge))
+  ].
+
 test_remove(_) ->
   prometheus_gauge:new([{name, pool_size},
                         {labels, [pool]},
-                        {help, "Http request count"}]),
+                        {help, "pool size"}]),
   prometheus_gauge:new([{name, simple_gauge}, {help, ""}]),
 
   prometheus_gauge:inc(pool_size, [mongodb]),
@@ -313,7 +265,75 @@ test_remove(_) ->
    ?_assertEqual(false, RResult3),
    ?_assertEqual(false, RResult4)].
 
-test_undefined_value(_) ->
-  prometheus_gauge:new([{name, pool_size}, {labels, [client]}, {help, ""}]),
+test_default_value(_) ->
+  prometheus_gauge:new([{name, pool_size},
+                        {labels, [client]},
+                        {help, ""}]),
   UndefinedValue = prometheus_gauge:value(pool_size, [post]),
-  [?_assertEqual(undefined, UndefinedValue)].
+
+  prometheus_gauge:new([{name, something_gauge},
+                        {labels, []},
+                        {help, ""}]),
+  SomethingValue = prometheus_gauge:value(something_gauge),
+
+  [?_assertEqual(undefined, UndefinedValue),
+   ?_assertEqual(0, SomethingValue)].
+
+test_values(_) ->
+  prometheus_gauge:new([{name, pool_size},
+                        {labels, [pool]},
+                        {help, "pool size"}]),
+  prometheus_gauge:set(pool_size, [mongodb], 10),
+  prometheus_gauge:inc(pool_size, [postgres], 13),
+
+  [?_assertEqual([{[{"pool", mongodb}], 10},
+                  {[{"pool", postgres}], 13}],
+                 lists:sort(prometheus_gauge:values(default, pool_size)))].
+
+test_collector1(_) ->
+  prometheus_gauge:new([{name, simple_gauge},
+                        {labels, ["label"]},
+                        {help, ""}]),
+  prometheus_gauge:set(simple_gauge, [label_value], 1),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               gauge=#'Gauge'{value=1}}]}],
+                 prometheus_collector:collect_mf_to_list(prometheus_gauge))].
+
+
+test_collector2(_) ->
+  prometheus_gauge:new([{name, simple_gauge},
+                        {labels, ["label"]},
+                        {constant_labels, #{qwe => qwa}},
+                        {help, ""}]),
+  prometheus_gauge:set(simple_gauge, [label_value], 1),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= <<"qwe">>,
+                                                                   value= <<"qwa">>},
+                                                      #'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               gauge=#'Gauge'{value=1}}]}],
+                 prometheus_collector:collect_mf_to_list(prometheus_gauge))].
+
+
+test_collector3(_) ->
+  MFList = try
+    prometheus:start(),
+    application:set_env(prometheus, global_labels, [{node, node()}]),
+    prometheus_gauge:new([{name, simple_gauge},
+                          {labels, ["label"]},
+                          {help, ""}]),
+    prometheus_gauge:set(simple_gauge, [label_value], 1),
+    prometheus_collector:collect_mf_to_list(prometheus_gauge)
+  after
+    application:unset_env(prometheus, global_labels)
+  end,
+  NodeBin = atom_to_binary(node(), utf8),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= <<"node">>,
+                                                                   value= NodeBin},
+                                                      #'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               gauge=#'Gauge'{value=1}}]}],
+                 MFList)].

@@ -2,7 +2,27 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-export([collect_metrics/2]).
+
+-include("prometheus.hrl").
 -include("prometheus_model.hrl").
+
+-define(METRIC_NAME_PREFIX, "rabbitmq_").
+
+metric_name_test() ->
+  %% test ?METRIC_NAME macro here too
+  ?assertMatch(<<"rabbitmq_memory_ets_bytes">>,
+               prometheus_model_helpers:metric_name("rabbitmq_memory_ets_bytes")),
+  ?assertMatch(<<"rabbitmq_memory_ets_bytes">>,
+               prometheus_model_helpers:metric_name(<<"rabbitmq_memory_ets_bytes">>)),
+  ?assertMatch(<<"rabbitmq_memory_ets_bytes">>,
+               prometheus_model_helpers:metric_name(rabbitmq_memory_ets_bytes)),
+  ?assertMatch(<<"rabbitmq_memory_ets_bytes">>,
+               prometheus_model_helpers:metric_name(?METRIC_NAME(memory_ets_bytes))),
+  ?assertMatch(<<"rabbitmq_memory_ets_bytes">>,
+               prometheus_model_helpers:metric_name(
+                 ?METRIC_NAME(["memory_", ets, "_bytes"]))).
+
 
 gauge_metric_test() ->
   Value = 11,
@@ -45,6 +65,52 @@ untyped_metric_test() ->
                                               value=LValue}],
                           untyped=#'Untyped'{value=Value}}],
                prometheus_model_helpers:untyped_metrics([{Labels, Value}])).
+
+boolean_metric_test() ->
+  Value = 11,
+  NoLabels = [],
+  LName = <<"label">>,
+  LValue = <<"value">>,
+  Labels = [{LName, LValue}],
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric(Value)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric({Value})),
+  ?assertMatch(#'Metric'{label=[#'LabelPair'{name=LName,
+                                             value=LValue}],
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric(Labels, Value)),
+  ?assertMatch([#'Metric'{label=[#'LabelPair'{name=LName,
+                                              value=LValue}],
+                          untyped=#'Untyped'{value=1}}],
+               prometheus_model_helpers:boolean_metrics([{Labels, Value}])),
+
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric(true)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=0}},
+               prometheus_model_helpers:boolean_metric(false)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric(1)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=0}},
+               prometheus_model_helpers:boolean_metric(0)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=0}},
+               prometheus_model_helpers:boolean_metric([])),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric(123)),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=1}},
+               prometheus_model_helpers:boolean_metric([1])),
+  ?assertMatch(#'Metric'{label=NoLabels,
+                         untyped=#'Untyped'{value=undefined}},
+               prometheus_model_helpers:boolean_metric(undefined)).
 
 counter_metric_test() ->
   Value = 11,
@@ -167,10 +233,35 @@ eunsure_mf_type_test() ->
   ?assertEqual('SUMMARY', prometheus_model_helpers:ensure_mf_type(summary)),
   ?assertEqual('HISTOGRAM', prometheus_model_helpers:ensure_mf_type(histogram)),
   ?assertEqual('UNTYPED', prometheus_model_helpers:ensure_mf_type(untyped)),
-  ?assertError({invalid_metric_type, qwe}, prometheus_model_helpers:ensure_mf_type(qwe)).
+  ?assertError({invalid_metric_type, qwe},
+               prometheus_model_helpers:ensure_mf_type(qwe)).
 
 ensure_binary_or_string_test() ->
   ?assertEqual(<<"qwe">>, prometheus_model_helpers:ensure_binary_or_string(qwe)),
   ?assertEqual("qwe", prometheus_model_helpers:ensure_binary_or_string("qwe")),
   ?assertEqual(<<"qwe">>, prometheus_model_helpers:ensure_binary_or_string(<<"qwe">>)),
   ?assertEqual(["2"], prometheus_model_helpers:ensure_binary_or_string(2)).
+
+
+create_mf_test() ->
+  ?assertMatch(#'MetricFamily'{name = <<"g1">>,
+                               help = "help",
+                               type = 'GAUGE',
+                               metric = [#'Metric'{label = [],
+                                                   gauge=#'Gauge'{value=g1_value}}]},
+               create_mf(g1, "help", gauge)),
+
+  ?assertMatch(#'MetricFamily'{name = ["ga", <<"uge1">>],
+                               help = "help",
+                               type = 'GAUGE',
+                               metric = [#'Metric'{label = [],
+                                                   gauge=#'Gauge'{value=g1_value}}]},
+               create_mf(["ga", <<"uge1">>], "help", gauge, {[], g1_value})).
+
+collect_metrics(g1, _Data) ->
+  prometheus_model_helpers:gauge_metric(g1_value).
+
+create_mf(Name, Help, Type, Metrics) ->
+  prometheus_model_helpers:create_mf(Name, Help, Type, Metrics).
+create_mf(Name, Help, Type) ->
+  prometheus_model_helpers:create_mf(Name, Help, Type, ?MODULE, undefined).

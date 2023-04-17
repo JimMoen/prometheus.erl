@@ -65,10 +65,6 @@
 -module(prometheus_collector).
 
 -export([enabled_collectors/0,
-         register/1,
-         register/2,
-         deregister/1,
-         deregister/2,
          collect_mf/3]).
 
 -ifdef(TEST).
@@ -81,7 +77,22 @@
 
 -compile({no_auto_import, [register/2]}).
 
+-define(DEFAULT_COLLECTORS,
+        [prometheus_boolean,
+         prometheus_counter,
+         prometheus_gauge,
+         prometheus_histogram,
+         prometheus_mnesia_collector,
+         prometheus_quantile_summary,
+         prometheus_summary,
+         prometheus_vm_dist_collector,
+         prometheus_vm_memory_collector,
+         prometheus_vm_msacc_collector,
+         prometheus_vm_statistics_collector,
+         prometheus_vm_system_info_collector]).
+
 -include("prometheus.hrl").
+-include("prometheus_model.hrl").
 
 %%====================================================================
 %% Types
@@ -102,10 +113,12 @@
     Registry :: prometheus_registry:registry(),
     Callback :: collect_mf_callback().
 
--callback collect_metrics(Name, Data) -> Metrics when
-    Name    :: prometheus_metric:name(),
-    Data    :: data(),
-    Metrics :: prometheus_model:'Metric'() | [prometheus_model:'Metric'()].
+%% %% TODO: either add mandatory Type argument here or track Type
+%% %% automatically and don't ask collector implementers to care
+%% -callback collect_metrics(Name, Data) -> Metrics when
+%%     Name    :: prometheus_metric:name(),
+%%     Data    :: data(),
+%%     Metrics :: prometheus_model:'Metric'() | [prometheus_model:'Metric'()].
 
 -callback deregister_cleanup(Registry) -> ok when
     Registry :: prometheus_registry:registry().
@@ -117,43 +130,46 @@
 %% @private
 -spec enabled_collectors() -> [collector()].
 enabled_collectors() ->
-  case application:get_env(prometheus, collectors) of
-    undefined -> all_known_collectors();
-    {ok, Collectors} -> Collectors
+  lists:usort(
+    case application:get_env(prometheus, collectors) of
+      undefined -> all_known_collectors();
+      {ok, Collectors} -> catch_default_collectors(Collectors)
+    end).
+
+%% pre-rendering optimization for the text format violates type constraints, but we still want it. So here is the
+%% separate function with relevant dialyzer check disabled.
+-dialyzer({no_match, global_labels_callback_wrapper/2}).
+-spec global_labels_callback_wrapper([], Callback) -> Callback when
+    Callback  :: collect_mf_callback().
+global_labels_callback_wrapper(GlobalLabels0, Callback) ->
+  GlobalLabels = prometheus_model_helpers:label_pairs(GlobalLabels0),
+  GlobalLabelsPrerendered = prometheus_text_format:render_labels(GlobalLabels),
+  fun (MF=#'MetricFamily'{metric=Metrics0}) ->
+      Metrics =
+        [case ML of
+           %% empty binary singals to us that an app knows what it's doing,
+           %% so we can optimize for the text format
+           <<>> -> M#'Metric'{label = GlobalLabelsPrerendered};
+
+           <<_/binary>> when GlobalLabelsPrerendered =:= <<>> -> M;
+           <<_/binary>> -> M#'Metric'{label = <<GlobalLabelsPrerendered/binary, ",", ML/binary>>};
+           _ -> M#'Metric'{label = GlobalLabels ++ ML}
+         end
+         || M=#'Metric'{label=ML} <- Metrics0],
+      Callback(MF#'MetricFamily'{metric=Metrics})
   end.
-
-%% @equiv register(Collector, default)
-%% @deprecated Please use {@link prometheus_registry:register_collector/1}
-register(Collector) -> register(Collector, default).
-
--spec register(Collector, Registry) -> ok when
-    Collector :: collector(),
-    Registry  :: prometheus_registry:registry().
-%% @deprecated Please use {@link prometheus_registry:register_collector/2}
-register(Collector, Registry) ->
-  ?DEPRECATED("prometheus_collector:register/2",
-              "prometheus_register:register_collector/2"),
-  ok = prometheus_registry:register_collector(Registry, Collector).
-
-%% @equiv deregister(Collector, default)
-%% @deprecated Please use {@link prometheus_registry:deregister_collector/1}
-deregister(Collector) -> deregister(Collector, default).
-
--spec deregister(Collector, Registry) -> ok when
-    Collector :: collector(),
-    Registry  :: prometheus_registry:registry().
-%% @deprecated Please use {@link prometheus_registry:deregister_collector/2}
-deregister(Collector, Registry) ->
-  ?DEPRECATED("prometheus_collector:deregister/2",
-              "prometheus_register:deregister_collector/2"),
-  prometheus_registry:deregister_collector(Registry, Collector).
 
 %% @doc Calls `Callback' for each MetricFamily of this collector.
 -spec collect_mf(Registry, Collector, Callback) -> ok when
     Registry  :: prometheus_registry:registry(),
     Collector :: collector(),
     Callback  :: collect_mf_callback().
-collect_mf(Registry, Collector, Callback) ->
+collect_mf(Registry, Collector, Callback0) ->
+  Callback = case application:get_env(prometheus, global_labels) of
+               undefined -> Callback0;
+               {ok, []} -> Callback0;
+               {ok, GlobalLabels} -> global_labels_callback_wrapper(GlobalLabels, Callback0)
+             end,
   ok = Collector:collect_mf(Registry, Callback).
 
 %%====================================================================
@@ -191,4 +207,17 @@ get_list(Key) ->
 %%====================================================================
 
 all_known_collectors() ->
-  prometheus_misc:behaviour_modules(prometheus_collector).
+  lists:umerge(
+    prometheus_misc:behaviour_modules(prometheus_collector),
+    ?DEFAULT_COLLECTORS).
+
+catch_default_collectors(Collectors) ->
+    maybe_replace_default(Collectors, []).
+
+maybe_replace_default([default|Rest], Acc) ->
+  maybe_replace_default(Rest, ?DEFAULT_COLLECTORS ++ Acc);
+maybe_replace_default([], Acc) ->
+  Acc;
+maybe_replace_default([H|R], Acc) ->
+  maybe_replace_default(R, [H|Acc]).
+

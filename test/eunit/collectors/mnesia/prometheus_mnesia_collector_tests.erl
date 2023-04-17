@@ -21,7 +21,8 @@ prometheus_mnesia_on_test_() ->
              prometheus_eunit_common:stop(X) end,
    [fun test_mnesia_on_collector/0,
     fun test_mnesia_on_collector_env_on/0,
-    fun test_mnesia_on_collector_env_off/0]}.
+    fun test_mnesia_on_collector_env_off/0,
+    fun test_mnesia_on_collector_global_labels/0]}.
 
 test_mnesia_on_collector_env_on() ->
   prometheus_registry:register_collector(prometheus_mnesia_collector),
@@ -36,6 +37,7 @@ test_mnesia_on_collector_env_on() ->
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_committed_transactions")),
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_logged_transactions")),
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_restarted_transactions")),
+  ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_memory_usage_bytes")),
   application:unset_env(prometheus,mnesia_collector_metrics,[]).
 
 test_mnesia_on_collector_env_off() ->
@@ -50,6 +52,7 @@ test_mnesia_on_collector_env_off() ->
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_committed_transactions")),
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_logged_transactions")),
   ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_restarted_transactions")),
+  ?assertMatch(nomatch, re:run(Metrics, "erlang_mnesia_memory_usage_bytes")),
   application:unset_env(prometheus,mnesia_collector_metrics,[]).
 
 test_mnesia_on_collector() ->
@@ -62,4 +65,15 @@ test_mnesia_on_collector() ->
   ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_failed_transactions")),
   ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_committed_transactions")),
   ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_logged_transactions")),
-  ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_restarted_transactions")).
+  ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_restarted_transactions")),
+  ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_memory_usage_bytes")).
+
+test_mnesia_on_collector_global_labels() ->
+  Metrics = try
+    application:set_env(prometheus, global_labels, [{node, node()}]),
+    prometheus_registry:register_collector(prometheus_mnesia_collector),
+    prometheus_text_format:format()
+  after
+    application:unset_env(prometheus, global_labels)
+  end,
+  ?assertMatch({match,_}, re:run(Metrics, "erlang_mnesia_held_locks{node=")).

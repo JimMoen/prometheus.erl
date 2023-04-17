@@ -7,6 +7,21 @@
 %% ==Exported metrics==
 %% <ul>
 %%   <li>
+%%     `erlang_vm_dirty_cpu_schedulers'<br/>
+%%     Type: gauge.<br/>
+%%     The number of scheduler dirty CPU scheduler threads used by the emulator.
+%%   </li>
+%%   <li>
+%%     `erlang_vm_dirty_cpu_schedulers_online'<br/>
+%%     Type: gauge.<br/>
+%%     The number of dirty CPU scheduler threads online.
+%%   </li>
+%%   <li>
+%%     `erlang_vm_dirty_io_schedulers'<br/>
+%%     Type: gauge.<br/>
+%%     The number of scheduler dirty I/O scheduler threads used by the emulator.
+%%   </li>
+%%   <li>
 %%     `erlang_vm_ets_limit'<br/>
 %%     Type: gauge.<br/>
 %%     The maximum number of ETS tables allowed.
@@ -79,6 +94,27 @@
 %%     Type: boolean.<br/>
 %%     1 if time correction is enabled, otherwise 0.
 %%   </li>
+%%   <li>
+%%     `erlang_vm_wordsize_bytes'<br/>
+%%     Type: gauge.<br/>
+%%     The size of Erlang term words in bytes.
+%%   </li>
+%%   <li>
+%%     `erlang_vm_atom_count'<br/>
+%%     Type: gauge.<br/>
+%%     The number of atom currently existing at the local node.
+%%   </li>
+%%   <li>
+%%     `erlang_vm_atom_limit'<br/>
+%%     Type: gauge.<br/>
+%%     The maximum number of simultaneously existing atom at the local node.
+%%   </li>
+%%   <li>
+%%     `erlang_vm_allocators'<br/>
+%%     Type: gauge.<br/>
+%%     Allocated (carriers_size) and used (blocks_size) memory
+%%     for the different allocators in the VM. See erts_alloc(3).
+%%   </li>
 %% </ul>
 %%
 %% ==Configuration==
@@ -134,6 +170,18 @@
 %%   <li>
 %%     `time_correction' for `erlang_vm_time_correction'.
 %%   </li>
+%%   <li>
+%%     `wordsize_bytes' for `erlang_vm_wordsize_bytes'.
+%%   </li>
+%%   <li>
+%%     `atom_count' for `erlang_vm_atom_count'.
+%%   </li>
+%%   <li>
+%%     `atom_limit' for `erlang_vm_atom_limit'.
+%%   </li>
+%%   <li>
+%%     `allocators' for `erlang_vm_allocators'.
+%%   </li>
 %% </ul>
 %%
 %% By default all metrics are enabled.
@@ -141,15 +189,9 @@
 -module(prometheus_vm_system_info_collector).
 
 -export([deregister_cleanup/1,
-         collect_mf/2,
-         collect_metrics/2]).
+         collect_mf/2]).
 
--import(prometheus_model_helpers, [create_mf/5,
-                                   untyped_metric/1,
-                                   gauge_metric/1,
-                                   gauge_metric/2,
-                                   counter_metric/1,
-                                   counter_metric/2]).
+-import(prometheus_model_helpers, [create_mf/4]).
 
 -include("prometheus.hrl").
 
@@ -159,37 +201,7 @@
 %% Macros
 %%====================================================================
 
--define(ETS_LIMIT, erlang_vm_ets_limit).
--define(LOGICAL_PROCESSORS, erlang_vm_logical_processors).
--define(LOGICAL_PROCESSORS_AVAILABLE, erlang_vm_logical_processors_available).
--define(LOGICAL_PROCESSORS_ONLINE, erlang_vm_logical_processors_online).
--define(PORT_COUNT, erlang_vm_port_count).
--define(PORT_LIMIT, erlang_vm_port_limit).
--define(PROCESS_COUNT, erlang_vm_process_count).
--define(PROCESS_LIMIT, erlang_vm_process_limit).
--define(SCHEDULERS, erlang_vm_schedulers).
--define(SCHEDULERS_ONLINE, erlang_vm_schedulers_online).
--define(SMP_SUPPORT, erlang_vm_smp_support).
--define(THREADS, erlang_vm_threads).
--define(THREAD_POOL_SIZE, erlang_vm_thread_pool_size).
--define(TIME_CORRECTION, erlang_vm_time_correction).
-
--define(PROMETHEUS_VM_SYSTEM_INFO, [
-                                    ets_limit,
-                                    logical_processors,
-                                    logical_processors_available,
-                                    logical_processors_online,
-                                    port_count,
-                                    port_limit,
-                                    process_count,
-                                    process_limit,
-                                    schedulers,
-                                    schedulers_online,
-                                    smp_support,
-                                    threads,
-                                    thread_pool_size,
-                                    time_correction
-                                   ]).
+-define(METRIC_NAME_PREFIX, "erlang_vm_").
 
 %%====================================================================
 %% Collector API
@@ -203,141 +215,154 @@ deregister_cleanup(_) -> ok.
     Callback :: prometheus_collector:callback().
 %% @private
 collect_mf(_Registry, Callback) ->
-  [call_if_system_info_exists(MFName,
-                              fun(Value) ->
-                                  add_metric_family(MFName, Value, Callback)
-                              end)
-   || MFName <- enabled_system_info_metrics()],
+  Metrics = metrics(),
+  EnabledMetrics = enabled_metrics(),
+  [add_metric_family(Metric, Callback)
+   || {Name, _, _}=Metric <- Metrics, metric_enabled(Name, EnabledMetrics)],
   ok.
 
-add_metric_family(ets_limit, Value, Callback) ->
-  Callback(create_gauge(?ETS_LIMIT,
-                        "The maximum number of ETS tables allowed.",
-                        Value));
-add_metric_family(logical_processors, Value, Callback) ->
-  Callback(create_gauge(?LOGICAL_PROCESSORS,
-                        "The detected number of logical processors "
-                        "configured in the system.",
-                        Value));
-add_metric_family(logical_processors_available, Value, Callback) ->
-  Callback(create_gauge(?LOGICAL_PROCESSORS_AVAILABLE,
-                        "The detected number of logical processors "
-                        "available to the Erlang runtime system.",
-                        Value));
-add_metric_family(logical_processors_online, Value, Callback) ->
-  Callback(create_gauge(?LOGICAL_PROCESSORS_ONLINE,
-                        "The detected number of logical processors "
-                        "online on the system.",
-                        Value));
-add_metric_family(port_count, Value, Callback) ->
-  Callback(create_gauge(?PORT_COUNT,
-                        "The number of ports currently existing "
-                        "at the local node.",
-                        Value));
-add_metric_family(port_limit, Value, Callback) ->
-  Callback(create_gauge(?PORT_LIMIT,
-                        "The maximum number of simultaneously existing ports "
-                        "at the local node.",
-                        Value));
-add_metric_family(process_count, Value, Callback) ->
-  Callback(create_gauge(?PROCESS_COUNT,
-                        "The number of processes currently existing "
-                        "at the local node.",
-                        Value));
-add_metric_family(process_limit, Value, Callback) ->
-  Callback(create_gauge(?PROCESS_LIMIT,
-                        "The maximum number of simultaneously existing "
-                        "processes at the local node.",
-                        Value));
-add_metric_family(schedulers, Value, Callback) ->
-  Callback(create_gauge(?SCHEDULERS,
-                        "The number of scheduler threads used by the emulator.",
-                        Value));
-add_metric_family(schedulers_online, Value, Callback) ->
-  Callback(create_gauge(?SCHEDULERS_ONLINE,
-                        "The number of schedulers online.",
-                        Value));
-add_metric_family(smp_support, Value, Callback) ->
-  Callback(create_boolean(?SMP_SUPPORT,
-                          "1 if the emulator has been compiled with SMP "
-                          "support, otherwise 0.",
-                          Value));
-add_metric_family(threads, Value, Callback) ->
-  Callback(create_boolean(?THREADS,
-                          "1 if the emulator has been compiled with thread "
-                          "support, otherwise 0.",
-                          Value));
-add_metric_family(thread_pool_size, Value, Callback) ->
-  Callback(create_gauge(?THREAD_POOL_SIZE,
-                        "The number of async threads in the async thread pool "
-                        "used for asynchronous driver calls.",
-                        Value));
-add_metric_family(time_correction, Value, Callback) ->
-  Callback(create_boolean(?TIME_CORRECTION,
-                          "1 if time correction is enabled, otherwise 0.",
-                          Value)).
-
-%% @private
-collect_metrics(?ETS_LIMIT, Value) ->
-  gauge_metric(Value);
-collect_metrics(?LOGICAL_PROCESSORS, Value) ->
-  gauge_metric(Value);
-collect_metrics(?LOGICAL_PROCESSORS_AVAILABLE, Value) ->
-  gauge_metric(Value);
-collect_metrics(?LOGICAL_PROCESSORS_ONLINE, Value) ->
-  gauge_metric(Value);
-collect_metrics(?PORT_COUNT, Value) ->
-  gauge_metric(Value);
-collect_metrics(?PORT_LIMIT, Value) ->
-  gauge_metric(Value);
-collect_metrics(?PROCESS_COUNT, Value) ->
-  gauge_metric(Value);
-collect_metrics(?PROCESS_LIMIT, Value) ->
-  gauge_metric(Value);
-collect_metrics(?SCHEDULERS, Value) ->
-  gauge_metric(Value);
-collect_metrics(?SCHEDULERS_ONLINE, Value) ->
-  gauge_metric(Value);
-collect_metrics(?SMP_SUPPORT, Value) ->
-  boolean_metric(Value);
-collect_metrics(?THREADS, Value) ->
-  boolean_metric(Value);
-collect_metrics(?THREAD_POOL_SIZE, Value) ->
-  gauge_metric(Value);
-collect_metrics(?TIME_CORRECTION, Value) ->
-  boolean_metric(Value).
+add_metric_family({Name, Type, Help}, Callback) ->
+  Callback(create_mf(?METRIC_NAME(Name), Help, Type, collect_metrics(Name))).
 
 %%====================================================================
 %% Private Parts
 %%====================================================================
 
-call_if_system_info_exists(SysInfoItem, Fun) ->
+metrics() ->
+  [
+   {dirty_cpu_schedulers, gauge,
+    "The number of scheduler dirty CPU scheduler "
+    "threads used by the emulator."},
+   {dirty_cpu_schedulers_online, gauge,
+    "The number of dirty CPU scheduler threads online."},
+   {dirty_io_schedulers, gauge,
+    "The number of scheduler dirty I/O scheduler "
+    "threads used by the emulator."},
+   {ets_limit, gauge,
+    "The maximum number of ETS tables allowed."},
+   {logical_processors, gauge,
+    "The detected number of logical processors "
+    "configured in the system."},
+   {logical_processors_available, gauge,
+    "The detected number of logical processors "
+    "available to the Erlang runtime system."},
+   {logical_processors_online, gauge,
+    "The detected number of logical processors "
+    "online on the system."},
+   {port_count, gauge,
+    "The number of ports currently existing "
+    "at the local node."},
+   {port_limit, gauge,
+    "The maximum number of simultaneously existing ports "
+    "at the local node."},
+   {process_count, gauge,
+    "The number of processes currently existing "
+    "at the local node."},
+   {process_limit, gauge,
+    "The maximum number of simultaneously existing "
+    "processes at the local node."},
+   {schedulers, gauge,
+    "The number of scheduler threads used by the emulator."},
+   {schedulers_online, gauge,
+    "The number of schedulers online."},
+   {smp_support, boolean,
+    "1 if the emulator has been compiled with SMP "
+    "support, otherwise 0."},
+   {threads, boolean,
+    "1 if the emulator has been compiled with thread "
+    "support, otherwise 0."},
+   {thread_pool_size, gauge,
+    "The number of async threads in the async thread pool "
+    "used for asynchronous driver calls."},
+   {time_correction, boolean,
+    "1 if time correction is enabled, otherwise 0."},
+   {wordsize_bytes, gauge,
+    "The size of Erlang term words in bytes."},
+   {atom_count, gauge,
+    "The number of atom currently existing "
+    "at the local node."},
+   {atom_limit, gauge,
+    "The maximum number of simultaneously existing "
+    "atom at the local node."},
+   {allocators, gauge,
+    "Allocated (carriers_size) and used (blocks_size) "
+    "memory for the different allocators in the VM. "
+    "See erts_alloc(3)."}
+  ].
+
+collect_metrics(allocators) ->
+    collect_allocator_metrics();
+collect_metrics(wordsize_bytes) ->
+    erlang:system_info(wordsize);
+collect_metrics(Name) ->
   try
-    case erlang:system_info(SysInfoItem) of
-      unknown -> Fun(undefined);
-      Value -> Fun(Value)
+    case erlang:system_info(Name) of
+      unknown -> undefined;
+      Value -> Value
     end
   catch
     error:badarg -> undefined
   end.
 
-enabled_system_info_metrics() ->
-  application:get_env(prometheus, vm_system_info_collector_metrics,
-                      ?PROMETHEUS_VM_SYSTEM_INFO).
+enabled_metrics() ->
+  application:get_env(prometheus, vm_system_info_collector_metrics, all).
 
-%% create_counter(Name, Help, Data) ->
-%%   create_mf(Name, Help, counter, ?MODULE, Data).
+metric_enabled(Name, Metrics) ->
+  Metrics =:= all orelse lists:member(Name, Metrics).
 
-create_gauge(Name, Help, Data) ->
-  create_mf(Name, Help, gauge, ?MODULE, Data).
+collect_allocator_metrics() ->
+    Metrics = lists:flatten([begin
+        [
+            [
+                allocator_metric(Alloc, Instance, Kind, Key, KindInfo)
+            || Key <- [carriers, carriers_size]] ++
+            [
+                allocator_blocks_metric(Alloc, Instance, Kind, Key, KindInfo)
+            || Key <- [count, size]]
 
-create_boolean(Name, Help, Data) ->
-  create_mf(Name, Help, untyped, ?MODULE, Data).
+        || {Kind, KindInfo} <- Info, (Kind =:= mbcs) orelse (Kind =:= mbcs_pool) orelse (Kind =:= sbcs)]
+    end || {{Alloc, Instance}, Info} <- allocators()]),
+    prometheus_model_helpers:gauge_metrics(Metrics).
 
-boolean_metric(Value) ->
-  case Value of
-    true ->
-      untyped_metric(1);
-    _ ->
-      untyped_metric(0)
-  end.
+allocator_metric(Alloc, Instance, Kind, Key, Values) ->
+    {[{alloc, Alloc}, {instance_no, Instance}, {kind, Kind}, {usage, Key}],
+        element(2, lists:keyfind(Key, 1, Values))}.
+
+%% Originally copied from recon_alloc.
+allocators() ->
+    Allocators = erlang:system_info(alloc_util_allocators),
+    %% versions is deleted in order to allow the use of the orddict api,
+    %% and never really having come across a case where it was useful to know.
+    [{{A, N}, lists:sort(proplists:delete(versions, Props))} ||
+        A <- Allocators,
+        Allocs <- [erlang:system_info({allocator, A})],
+        Allocs =/= false,
+        {_, N, Props} <- Allocs].
+
+allocator_blocks_metric(Alloc, Instance, Kind, count, KindInfo) ->
+  Count = case lists:keyfind(blocks, 1, KindInfo) of
+            {blocks, L} when is_list(L) ->
+              sum_alloc_block_list(count, L, 0);
+            Tuple ->
+              element(2, Tuple)
+          end,
+  {[{alloc, Alloc}, {instance_no, Instance}, {kind, Kind}, {usage, blocks}], Count};
+allocator_blocks_metric(Alloc, Instance, Kind, size, KindInfo) ->
+    Size = case lists:keyfind(blocks_size, 1, KindInfo) of
+               false ->
+                   sum_alloc_block_list(size, element(2, lists:keyfind(blocks, 1, KindInfo)), 0);
+               Tuple ->
+                   element(2, Tuple)
+           end,
+    {[{alloc, Alloc}, {instance_no, Instance}, {kind, Kind}, {usage, blocks_size}], Size}.
+
+sum_alloc_block_list(Type, [{_, L} | Rest], Acc) ->
+    Value = case lists:keyfind(Type, 1, L) of
+              false -> 0;
+              Tuple -> element(2, Tuple)
+            end,
+    sum_alloc_block_list(Type, Rest, Value + Acc);
+sum_alloc_block_list(Type, [_ | Rest], Acc) ->
+    sum_alloc_block_list(Type, Rest, Acc);
+sum_alloc_block_list(_Type, [], Acc) ->
+    Acc.

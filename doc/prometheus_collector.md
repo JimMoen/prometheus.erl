@@ -8,7 +8,7 @@
 
 A collector for a set of metrics.
 
-__This module defines the `prometheus_collector` behaviour.__<br /> Required callback functions: `collect_mf/2`, `collect_metrics/2`, `deregister_cleanup/1`.
+__This module defines the `prometheus_collector` behaviour.__<br /> Required callback functions: `collect_mf/2`, `deregister_cleanup/1`.
 
 <a name="description"></a>
 
@@ -80,7 +80,7 @@ Example (simplified `prometheus_vm_memory_collector`):
 
 
 <pre><code>
-collect_mf_callback() = fun((<a href="prometheus_model.md#type-MetricFamily">prometheus_model:'MetricFamily'()</a>) -&gt; any())
+collect_mf_callback() = fun((<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_model.html#type-MetricFamily">prometheus_model:'MetricFamily'()</a>) -&gt; any())
 </code></pre>
 
 
@@ -108,7 +108,7 @@ data() = any()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#collect_mf-3">collect_mf/3</a></td><td>Calls <code>Callback</code> for each MetricFamily of this collector.</td></tr><tr><td valign="top"><a href="#deregister-1">deregister/1</a></td><td>(<em>Deprecated</em>.) Equivalent to <a href="#deregister-2"><tt>deregister(Collector, default)</tt></a>.</td></tr><tr><td valign="top"><a href="#deregister-2">deregister/2</a></td><td>(<em>Deprecated</em>.) </td></tr><tr><td valign="top"><a href="#register-1">register/1</a></td><td>(<em>Deprecated</em>.) Equivalent to <a href="#register-2"><tt>register(Collector, default)</tt></a>.</td></tr><tr><td valign="top"><a href="#register-2">register/2</a></td><td>(<em>Deprecated</em>.) </td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#collect_mf-3">collect_mf/3</a></td><td>Calls <code>Callback</code> for each MetricFamily of this collector.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -123,51 +123,7 @@ data() = any()
 collect_mf(Registry, Collector, Callback) -&gt; ok
 </code></pre>
 
-<ul class="definitions"><li><code>Registry = <a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a></code></li><li><code>Collector = <a href="#type-collector">collector()</a></code></li><li><code>Callback = <a href="#type-collect_mf_callback">collect_mf_callback()</a></code></li></ul>
+<ul class="definitions"><li><code>Registry = <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a></code></li><li><code>Collector = <a href="#type-collector">collector()</a></code></li><li><code>Callback = <a href="#type-collect_mf_callback">collect_mf_callback()</a></code></li></ul>
 
 Calls `Callback` for each MetricFamily of this collector.
-
-<a name="deregister-1"></a>
-
-### deregister/1 ###
-
-`deregister(Collector) -> any()`
-
-Equivalent to [`deregister(Collector, default)`](#deregister-2).
-
-__This function is deprecated:__ Please use [`prometheus_registry:deregister_collector/1`](prometheus_registry.md#deregister_collector-1)
-
-<a name="deregister-2"></a>
-
-### deregister/2 ###
-
-<pre><code>
-deregister(Collector, Registry) -&gt; ok
-</code></pre>
-
-<ul class="definitions"><li><code>Collector = <a href="#type-collector">collector()</a></code></li><li><code>Registry = <a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a></code></li></ul>
-
-__This function is deprecated:__ Please use [`prometheus_registry:deregister_collector/2`](prometheus_registry.md#deregister_collector-2)
-
-<a name="register-1"></a>
-
-### register/1 ###
-
-`register(Collector) -> any()`
-
-Equivalent to [`register(Collector, default)`](#register-2).
-
-__This function is deprecated:__ Please use [`prometheus_registry:register_collector/1`](prometheus_registry.md#register_collector-1)
-
-<a name="register-2"></a>
-
-### register/2 ###
-
-<pre><code>
-register(Collector, Registry) -&gt; ok
-</code></pre>
-
-<ul class="definitions"><li><code>Collector = <a href="#type-collector">collector()</a></code></li><li><code>Registry = <a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a></code></li></ul>
-
-__This function is deprecated:__ Please use [`prometheus_registry:register_collector/2`](prometheus_registry.md#register_collector-2)
 

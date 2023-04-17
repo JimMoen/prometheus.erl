@@ -12,6 +12,7 @@
 
 -export([collect/2,
          collectors/1,
+         exists/1,
          register_collector/1,
          register_collector/2,
          register_collectors/1,
@@ -46,6 +47,33 @@
 %%====================================================================
 %% Public API
 %%====================================================================
+
+%% @doc
+%% Tries to find registry with the `Name'.
+%% Assumes that registry name is always an atom.
+%% If `Name' is an atom `ets:lookup/2' is used
+%% If `Name' is an iolist performs safe search (to avoid interning
+%% atoms) and returns atom or false. This operation is O(n).
+%% @end
+-spec exists(Name) -> Result when
+    Name :: atom() | iolist(),
+    Result :: boolean() | atom().
+exists(Name) when is_atom(Name) ->
+  case ets:lookup(?PROMETHEUS_REGISTRY_TABLE, Name) of
+    [] -> false;
+    _ -> true
+  end;
+exists(Name) when is_list(Name) orelse is_binary(Name) ->
+  try binary_to_existing_atom(iolist_to_binary(Name), utf8) of
+    Atom ->
+      case exists(Atom) of
+        true -> Atom;
+        false -> false
+      end
+  catch
+    error:badarg ->
+      false
+  end.
 
 %% @doc
 %% Calls `Callback' for each collector with two arguments:
@@ -133,3 +161,7 @@ collector_registeredp(Registry, Collector) ->
     [] -> false;
     _  -> true
   end.
+
+%%%===================================================================
+%%% Private functions
+%%%===================================================================

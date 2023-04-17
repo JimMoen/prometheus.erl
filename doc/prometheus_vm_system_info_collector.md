@@ -18,6 +18,18 @@ __Behaviours:__ [`prometheus_collector`](prometheus_collector.md).
 ### <a name="Exported_metrics">Exported metrics</a> ###
 
 
+* `erlang_vm_dirty_cpu_schedulers`<br />
+Type: gauge.<br />
+The number of scheduler dirty CPU scheduler threads used by the emulator.
+
+* `erlang_vm_dirty_cpu_schedulers_online`<br />
+Type: gauge.<br />
+The number of dirty CPU scheduler threads online.
+
+* `erlang_vm_dirty_io_schedulers`<br />
+Type: gauge.<br />
+The number of scheduler dirty I/O scheduler threads used by the emulator.
+
 * `erlang_vm_ets_limit`<br />
 Type: gauge.<br />
 The maximum number of ETS tables allowed.
@@ -77,6 +89,23 @@ used for asynchronous driver calls.
 Type: boolean.<br />
 1 if time correction is enabled, otherwise 0.
 
+* `erlang_vm_wordsize_bytes`<br />
+Type: gauge.<br />
+The size of Erlang term words in bytes.
+
+* `erlang_vm_atom_count`<br />
+Type: gauge.<br />
+The number of atom currently existing at the local node.
+
+* `erlang_vm_atom_limit`<br />
+Type: gauge.<br />
+The maximum number of simultaneously existing atom at the local node.
+
+* `erlang_vm_allocators`<br />
+Type: gauge.<br />
+Allocated (carriers_size) and used (blocks_size) memory
+for the different allocators in the VM. See erts_alloc(3).
+
 
 
 ### <a name="Configuration">Configuration</a> ###
@@ -117,6 +146,14 @@ erlang:system_info/1
 * `thread_pool_size` for `erlang_vm_thread_pool_size`.
 
 * `time_correction` for `erlang_vm_time_correction`.
+
+* `wordsize_bytes` for `erlang_vm_wordsize_bytes`.
+
+* `atom_count` for `erlang_vm_atom_count`.
+
+* `atom_limit` for `erlang_vm_atom_limit`.
+
+* `allocators` for `erlang_vm_allocators`.
 
 
 By default all metrics are enabled.

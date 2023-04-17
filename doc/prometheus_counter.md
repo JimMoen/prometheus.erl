@@ -8,7 +8,7 @@
 Counter is a Metric that represents a single numerical value that only ever
 goes up.
 
-__Behaviours:__ [`gen_server`](gen_server.md), [`prometheus_collector`](prometheus_collector.md), [`prometheus_metric`](prometheus_metric.md).
+__Behaviours:__ [`prometheus_collector`](prometheus_collector.md), [`prometheus_metric`](prometheus_metric.md).
 
 <a name="description"></a>
 
@@ -67,18 +67,16 @@ Example:
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#declare-1">declare/1</a></td><td>Creates a counter using <code>Spec</code>, if a counter with the same <code>Spec</code> exists
-returns <code>false</code>.</td></tr><tr><td valign="top"><a href="#declare-2">declare/2</a></td><td>(<em>Deprecated</em>.) </td></tr><tr><td valign="top"><a href="#dinc-1">dinc/1</a></td><td>Equivalent to <a href="#dinc-4"><tt>dinc(default, Name, [], 1)</tt></a>.</td></tr><tr><td valign="top"><a href="#dinc-2">dinc/2</a></td><td>If the second argument is a list, equivalent to
-<a href="#dinc-4"><tt>dinc(default, Name, LabelValues, 1)</tt></a>
-otherwise equivalent to
-<a href="#dinc-4"><tt>dinc(default, Name, [], Value)</tt></a>.</td></tr><tr><td valign="top"><a href="#dinc-3">dinc/3</a></td><td>Equivalent to <a href="#dinc-4"><tt>dinc(default, Name, LabelValues, Value)</tt></a>.</td></tr><tr><td valign="top"><a href="#dinc-4">dinc/4</a></td><td>Increments the counter identified by <code>Registry</code>, <code>Name</code>
-and <code>LabelValues</code> by <code>Value</code>.</td></tr><tr><td valign="top"><a href="#inc-1">inc/1</a></td><td>Equivalent to <a href="#inc-4"><tt>inc(default, Name, [], 1)</tt></a>.</td></tr><tr><td valign="top"><a href="#inc-2">inc/2</a></td><td>If the second argument is a list, equivalent to
+returns <code>false</code>.</td></tr><tr><td valign="top"><a href="#deregister-1">deregister/1</a></td><td>Equivalent to <a href="#deregister-2"><tt>deregister(default, Name)</tt></a>.</td></tr><tr><td valign="top"><a href="#deregister-2">deregister/2</a></td><td>
+Removes all counter series with name <code>Name</code> and
+removes Metric Family from <code>Registry</code>.</td></tr><tr><td valign="top"><a href="#inc-1">inc/1</a></td><td>Equivalent to <a href="#inc-4"><tt>inc(default, Name, [], 1)</tt></a>.</td></tr><tr><td valign="top"><a href="#inc-2">inc/2</a></td><td>If the second argument is a list, equivalent to
 <a href="#inc-4"><tt>inc(default, Name, LabelValues, 1)</tt></a>
 otherwise equivalent to
 <a href="#inc-4"><tt>inc(default, Name, [], Value)</tt></a>.</td></tr><tr><td valign="top"><a href="#inc-3">inc/3</a></td><td>Equivalent to <a href="#inc-4"><tt>inc(default, Name, LabelValues, Value)</tt></a>.</td></tr><tr><td valign="top"><a href="#inc-4">inc/4</a></td><td>Increments the counter identified by <code>Registry</code>, <code>Name</code>
-and <code>LabelValues</code> by <code>Value</code>.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Creates a counter using <code>Spec</code>.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td>(<em>Deprecated</em>.) </td></tr><tr><td valign="top"><a href="#remove-1">remove/1</a></td><td>Equivalent to <a href="#remove-3"><tt>remove(default, Name, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#remove-2">remove/2</a></td><td>Equivalent to <a href="#remove-3"><tt>remove(default, Name, LabelValues)</tt></a>.</td></tr><tr><td valign="top"><a href="#remove-3">remove/3</a></td><td>Removes counter series identified by <code>Registry</code>, <code>Name</code>
+and <code>LabelValues</code> by <code>Value</code>.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Creates a counter using <code>Spec</code>.</td></tr><tr><td valign="top"><a href="#remove-1">remove/1</a></td><td>Equivalent to <a href="#remove-3"><tt>remove(default, Name, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#remove-2">remove/2</a></td><td>Equivalent to <a href="#remove-3"><tt>remove(default, Name, LabelValues)</tt></a>.</td></tr><tr><td valign="top"><a href="#remove-3">remove/3</a></td><td>Removes counter series identified by <code>Registry</code>, <code>Name</code>
 and <code>LabelValues</code>.</td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>Equivalent to <a href="#reset-3"><tt>reset(default, Name, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#reset-2">reset/2</a></td><td>Equivalent to <a href="#reset-3"><tt>reset(default, Name, LabelValues)</tt></a>.</td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td>Resets the value of the counter identified by <code>Registry</code>, <code>Name</code>
 and <code>LabelValues</code>.</td></tr><tr><td valign="top"><a href="#value-1">value/1</a></td><td>Equivalent to <a href="#value-3"><tt>value(default, Name, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#value-2">value/2</a></td><td>Equivalent to <a href="#value-3"><tt>value(default, Name, LabelValues)</tt></a>.</td></tr><tr><td valign="top"><a href="#value-3">value/3</a></td><td>Returns the value of the counter identified by <code>Registry</code>, <code>Name</code>
-and <code>LabelValues</code>.</td></tr></table>
+and <code>LabelValues</code>.</td></tr><tr><td valign="top"><a href="#values-2">values/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -105,59 +103,27 @@ isn't a list.<br />
 Raises `{invalid_label_name, Name, Message}` error if `Name` isn't a valid
 label name.
 
-<a name="declare-2"></a>
+<a name="deregister-1"></a>
 
-### declare/2 ###
+### deregister/1 ###
 
-`declare(Spec, Registry) -> any()`
+`deregister(Name) -> any()`
 
-__This function is deprecated:__ Please use [`declare/1`](#declare-1) with registry
-key instead.
+Equivalent to [`deregister(default, Name)`](#deregister-2).
 
-<a name="dinc-1"></a>
+<a name="deregister-2"></a>
 
-### dinc/1 ###
+### deregister/2 ###
 
-`dinc(Name) -> any()`
+`deregister(Registry, Name) -> any()`
 
-Equivalent to [`dinc(default, Name, [], 1)`](#dinc-4).
+Removes all counter series with name `Name` and
+removes Metric Family from `Registry`.
 
-<a name="dinc-2"></a>
+After this call new/1 for `Name` and `Registry` will succeed.
 
-### dinc/2 ###
-
-`dinc(Name, LabelValues) -> any()`
-
-If the second argument is a list, equivalent to
-[`dinc(default, Name, LabelValues, 1)`](#dinc-4)
-otherwise equivalent to
-[`dinc(default, Name, [], Value)`](#dinc-4).
-
-<a name="dinc-3"></a>
-
-### dinc/3 ###
-
-`dinc(Name, LabelValues, Value) -> any()`
-
-Equivalent to [`dinc(default, Name, LabelValues, Value)`](#dinc-4).
-
-<a name="dinc-4"></a>
-
-### dinc/4 ###
-
-`dinc(Registry, Name, LabelValues, Value) -> any()`
-
-Increments the counter identified by `Registry`, `Name`
-and `LabelValues` by `Value`.
-If `Value` happened to be a float number even one time(!) you
-shouldn't use [`inc/4`](#inc-4) after dinc.
-
-Raises `{invalid_value, Value, Message}` if `Value`
-isn't a number.<br />
-Raises `{unknown_metric, Registry, Name}` error if counter with named `Name`
-can't be found in `Registry`.<br />
-Raises `{invalid_metric_arity, Present, Expected}` error if labels count
-mismatch.
+Returns `{true, _}` if `Name` was a registered counter.
+Otherwise returns `{true, _}`.
 
 <a name="inc-1"></a>
 
@@ -196,7 +162,7 @@ Increments the counter identified by `Registry`, `Name`
 and `LabelValues` by `Value`.
 
 Raises `{invalid_value, Value, Message}` if `Value`
-isn't a positive integer.<br />
+isn't a positive number.<br />
 Raises `{unknown_metric, Registry, Name}` error if counter with named `Name`
 can't be found in `Registry`.<br />
 Raises `{invalid_metric_arity, Present, Expected}` error if labels count
@@ -223,15 +189,6 @@ label name.<br />
 Raises `{mf_already_exists, {Registry, Name}, Message}` error if a counter
 with the same `Spec` already exists.
 
-<a name="new-2"></a>
-
-### new/2 ###
-
-`new(Spec, Registry) -> any()`
-
-__This function is deprecated:__ Please use [`new/1`](#new-1) with registry
-key instead.
-
 <a name="remove-1"></a>
 
 ### remove/1 ###
@@ -257,7 +214,7 @@ Equivalent to [`remove(default, Name, LabelValues)`](#remove-3).
 Removes counter series identified by `Registry`, `Name`
 and `LabelValues`.
 
-Raises `{unknown_metric, Registry, Name}` error if counter with named `Name`
+Raises `{unknown_metric, Registry, Name}` error if counter with name `Name`
 can't be found in `Registry`.<br />
 Raises `{invalid_metric_arity, Present, Expected}` error if labels count
 mismatch.
@@ -287,7 +244,7 @@ Equivalent to [`reset(default, Name, LabelValues)`](#reset-3).
 Resets the value of the counter identified by `Registry`, `Name`
 and `LabelValues`.
 
-Raises `{unknown_metric, Registry, Name}` error if counter with named `Name`
+Raises `{unknown_metric, Registry, Name}` error if counter with name `Name`
 can't be found in `Registry`.<br />
 Raises `{invalid_metric_arity, Present, Expected}` error if labels count
 mismatch.
@@ -322,4 +279,10 @@ Raises `{unknown_metric, Registry, Name}` error if counter named `Name`
 can't be found in `Registry`.<br />
 Raises `{invalid_metric_arity, Present, Expected}` error if labels count
 mismatch.
+
+<a name="values-2"></a>
+
+### values/2 ###
+
+`values(Registry, Name) -> any()`
 

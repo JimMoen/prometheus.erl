@@ -29,7 +29,7 @@ batch jobs.
 
 
 <pre><code>
-collect_callback() = fun((<a href="#type-registry">registry()</a>, <a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>) -&gt; any())
+collect_callback() = fun((<a href="#type-registry">registry()</a>, <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>) -&gt; any())
 </code></pre>
 
 
@@ -50,7 +50,8 @@ registry() = atom()
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#clear-0">clear/0</a></td><td>Equivalent to <a href="#clear-1"><tt>clear(default)</tt></a>.</td></tr><tr><td valign="top"><a href="#clear-1">clear/1</a></td><td>Unregisters all collectors.</td></tr><tr><td valign="top"><a href="#collect-2">collect/2</a></td><td>
 Calls <code>Callback</code> for each collector with two arguments:
 <code>Registry</code> and <code>Collector</code>.</td></tr><tr><td valign="top"><a href="#collector_registeredp-1">collector_registeredp/1</a></td><td>Equivalent to <a href="#collector_registeredp-2"><tt>collector_registeredp(default, Collector)</tt></a>.</td></tr><tr><td valign="top"><a href="#collector_registeredp-2">collector_registeredp/2</a></td><td>Checks whether <code>Collector</code> is registered.</td></tr><tr><td valign="top"><a href="#collectors-1">collectors/1</a></td><td>
-Returns collectors registered in <code>Registry</code>.</td></tr><tr><td valign="top"><a href="#deregister_collector-1">deregister_collector/1</a></td><td>Equivalent to <a href="#deregister_collector-2"><tt>deregister_collector(default, Collector)</tt></a>.</td></tr><tr><td valign="top"><a href="#deregister_collector-2">deregister_collector/2</a></td><td>Unregisters a collector.</td></tr><tr><td valign="top"><a href="#register_collector-1">register_collector/1</a></td><td>Equivalent to <a href="#register_collector-2"><tt>register_collector(default, Collector)</tt></a>.</td></tr><tr><td valign="top"><a href="#register_collector-2">register_collector/2</a></td><td>Register a collector.</td></tr><tr><td valign="top"><a href="#register_collectors-1">register_collectors/1</a></td><td>Equivalent to <a href="#register_collectors-2"><tt>register_collectors(default, Collectors)</tt></a>.</td></tr><tr><td valign="top"><a href="#register_collectors-2">register_collectors/2</a></td><td>Registers collectors list.</td></tr></table>
+Returns collectors registered in <code>Registry</code>.</td></tr><tr><td valign="top"><a href="#deregister_collector-1">deregister_collector/1</a></td><td>Equivalent to <a href="#deregister_collector-2"><tt>deregister_collector(default, Collector)</tt></a>.</td></tr><tr><td valign="top"><a href="#deregister_collector-2">deregister_collector/2</a></td><td>Unregisters a collector.</td></tr><tr><td valign="top"><a href="#exists-1">exists/1</a></td><td>
+Tries to find registry with the <code>Name</code>.</td></tr><tr><td valign="top"><a href="#register_collector-1">register_collector/1</a></td><td>Equivalent to <a href="#register_collector-2"><tt>register_collector(default, Collector)</tt></a>.</td></tr><tr><td valign="top"><a href="#register_collector-2">register_collector/2</a></td><td>Register a collector.</td></tr><tr><td valign="top"><a href="#register_collectors-1">register_collectors/1</a></td><td>Equivalent to <a href="#register_collectors-2"><tt>register_collectors(default, Collectors)</tt></a>.</td></tr><tr><td valign="top"><a href="#register_collectors-2">register_collectors/2</a></td><td>Registers collectors list.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -73,7 +74,7 @@ Equivalent to [`clear(default)`](#clear-1).
 ### clear/1 ###
 
 <pre><code>
-clear(Registry::<a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a>) -&gt; ok
+clear(Registry::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -87,7 +88,7 @@ Unregisters all collectors.
 collect(Registry, Callback) -&gt; ok
 </code></pre>
 
-<ul class="definitions"><li><code>Registry = <a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a></code></li><li><code>Callback = <a href="#type-collect_callback">collect_callback()</a></code></li></ul>
+<ul class="definitions"><li><code>Registry = <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a></code></li><li><code>Callback = <a href="#type-collect_callback">collect_callback()</a></code></li></ul>
 
 Calls `Callback` for each collector with two arguments:
 `Registry` and `Collector`.
@@ -100,7 +101,7 @@ Calls `Callback` for each collector with two arguments:
 collector_registeredp(Collector) -&gt; boolean()
 </code></pre>
 
-<ul class="definitions"><li><code>Collector = <a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a></code></li></ul>
+<ul class="definitions"><li><code>Collector = <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a></code></li></ul>
 
 Equivalent to [`collector_registeredp(default, Collector)`](#collector_registeredp-2).
 
@@ -112,7 +113,7 @@ Equivalent to [`collector_registeredp(default, Collector)`](#collector_registere
 collector_registeredp(Registry, Collector) -&gt; boolean()
 </code></pre>
 
-<ul class="definitions"><li><code>Registry = <a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a></code></li><li><code>Collector = <a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a></code></li></ul>
+<ul class="definitions"><li><code>Registry = <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a></code></li><li><code>Collector = <a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a></code></li></ul>
 
 Checks whether `Collector` is registered.
 
@@ -121,7 +122,7 @@ Checks whether `Collector` is registered.
 ### collectors/1 ###
 
 <pre><code>
-collectors(Registry::<a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a>) -&gt; [Collector::<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>]
+collectors(Registry::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a>) -&gt; [Collector::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>]
 </code></pre>
 <br />
 
@@ -132,7 +133,7 @@ Returns collectors registered in `Registry`.
 ### deregister_collector/1 ###
 
 <pre><code>
-deregister_collector(Collector::<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>) -&gt; ok
+deregister_collector(Collector::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -143,18 +144,34 @@ Equivalent to [`deregister_collector(default, Collector)`](#deregister_collector
 ### deregister_collector/2 ###
 
 <pre><code>
-deregister_collector(Registry::<a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a>, Collector::<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>) -&gt; ok
+deregister_collector(Registry::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a>, Collector::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>) -&gt; ok
 </code></pre>
 <br />
 
 Unregisters a collector.
+
+<a name="exists-1"></a>
+
+### exists/1 ###
+
+<pre><code>
+exists(Name) -&gt; Result
+</code></pre>
+
+<ul class="definitions"><li><code>Name = atom() | iolist()</code></li><li><code>Result = boolean() | atom()</code></li></ul>
+
+Tries to find registry with the `Name`.
+Assumes that registry name is always an atom.
+If `Name` is an atom `ets:lookup/2` is used
+If `Name` is an iolist performs safe search (to avoid interning
+atoms) and returns atom or false. This operation is O(n).
 
 <a name="register_collector-1"></a>
 
 ### register_collector/1 ###
 
 <pre><code>
-register_collector(Collector::<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>) -&gt; ok
+register_collector(Collector::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -165,7 +182,7 @@ Equivalent to [`register_collector(default, Collector)`](#register_collector-2).
 ### register_collector/2 ###
 
 <pre><code>
-register_collector(Registry::<a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a>, Collector::<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>) -&gt; ok
+register_collector(Registry::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a>, Collector::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -176,7 +193,7 @@ Register a collector.
 ### register_collectors/1 ###
 
 <pre><code>
-register_collectors(Collectors::[<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>]) -&gt; ok
+register_collectors(Collectors::[<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>]) -&gt; ok
 </code></pre>
 <br />
 
@@ -187,7 +204,7 @@ Equivalent to [`register_collectors(default, Collectors)`](#register_collectors-
 ### register_collectors/2 ###
 
 <pre><code>
-register_collectors(Registry::<a href="prometheus_registry.md#type-registry">prometheus_registry:registry()</a>, Collectors::[<a href="prometheus_collector.md#type-collector">prometheus_collector:collector()</a>]) -&gt; ok
+register_collectors(Registry::<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_registry.html#type-registry">prometheus_registry:registry()</a>, Collectors::[<a href="http://www.erlang.org/edoc/doc/prometheus/doc/prometheus_collector.html#type-collector">prometheus_collector:collector()</a>]) -&gt; ok
 </code></pre>
 <br />
 

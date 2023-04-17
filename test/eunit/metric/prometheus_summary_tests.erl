@@ -11,25 +11,25 @@ prometheus_format_test_() ->
    [fun test_registration/1,
     fun test_errors/1,
     fun test_observe/1,
-    fun test_dobserve/1,
     fun test_observe_duration_seconds/1,
     fun test_observe_duration_milliseconds/1,
+    fun test_deregister/1,
     fun test_remove/1,
-    fun test_undefined_value/1]}.
+    fun test_default_value/1,
+    fun test_values/1,
+    fun test_collector1/1,
+    fun test_collector2/1,
+    fun test_collector3/1]}.
 
 test_registration(_)->
   Name = orders_summary,
   SpecWithRegistry = [{name, Name},
                       {help, ""},
                       {registry, qwe}],
-  SpecWithoutRegistry = [{name, Name},
-                         {help, ""}],
   [?_assertEqual(true,
                  prometheus_summary:declare(SpecWithRegistry)),
-   ?_assertEqual(false,
-                 prometheus_summary:declare(SpecWithoutRegistry, qwe)),
    ?_assertError({mf_already_exists, {qwe, Name}, "Consider using declare instead."},
-                 prometheus_summary:new(SpecWithoutRegistry, qwe))].
+                 prometheus_summary:new(SpecWithRegistry))].
 
 test_errors(_) ->
   prometheus_summary:new([{name, db_query_duration}, {labels, [repo]}, {help, ""}]),
@@ -51,10 +51,6 @@ test_errors(_) ->
    ?_assertError({invalid_metric_arity, 2, 1},
                  prometheus_summary:observe(db_query_duration, [repo, db], 1)),
    ?_assertError({unknown_metric, default, unknown_metric},
-                 prometheus_summary:dobserve(unknown_metric, 1)),
-   ?_assertError({invalid_metric_arity, 2, 1},
-                 prometheus_summary:dobserve(db_query_duration, [repo, db], 1)),
-   ?_assertError({unknown_metric, default, unknown_metric},
                  prometheus_summary:observe_duration(unknown_metric,
                                                      fun() -> 1 end)),
    ?_assertError({invalid_metric_arity, 2, 1},
@@ -74,12 +70,8 @@ test_errors(_) ->
    ?_assertError({invalid_metric_arity, 2, 1},
                  prometheus_summary:remove(db_query_duration, [repo, db])),
    %% summary specific errors
-   ?_assertError({invalid_value, 1.5, "observe accepts only integers"},
-                 prometheus_summary:observe(orders_summary, 1.5)),
-   ?_assertError({invalid_value, "qwe", "observe accepts only integers"},
+   ?_assertError({invalid_value, "qwe", "observe accepts only numbers"},
                  prometheus_summary:observe(orders_summary, "qwe")),
-   ?_assertError({invalid_value, "qwe", "dobserve accepts only numbers"},
-                 prometheus_summary:dobserve(orders_summary, "qwe")),
    ?_assertError({invalid_value, "qwe", "observe_duration accepts only functions"},
                  prometheus_summary:observe_duration(pool_size, "qwe"))
   ].
@@ -90,56 +82,14 @@ test_observe(_) ->
                           {help, "Track orders count/total sum"}]),
   prometheus_summary:observe(orders_summary, [electronics], 10),
   prometheus_summary:observe(orders_summary, [electronics], 15),
-  Value = prometheus_summary:value(orders_summary, [electronics]),
-  prometheus_summary:reset(orders_summary, [electronics]),
-  RValue = prometheus_summary:value(orders_summary, [electronics]),
-  [?_assertEqual({2, 25}, Value),
-   ?_assertEqual({0, 0}, RValue)].
-
-
-test_dobserve(_) ->
-  prometheus_summary:new([{name, orders_summary},
-                          {labels, [department]},
-                          {help, "Track orders count/total sum"}]),
-  prometheus_summary:dobserve(orders_summary, [electronics], 1.5),
-  prometheus_summary:dobserve(orders_summary, [electronics], 2.7),
-
-  %% dobserve is async so lets make sure gen_server processed our increment request
-  timer:sleep(10),
+  prometheus_summary:observe(orders_summary, [electronics], 1.5),
+  prometheus_summary:observe(orders_summary, [electronics], 2.7),
 
   Value = prometheus_summary:value(orders_summary, [electronics]),
   prometheus_summary:reset(orders_summary, [electronics]),
   RValue = prometheus_summary:value(orders_summary, [electronics]),
-  [?_assertEqual({2, 4.2}, Value),
+  [?_assertMatch({4, Sum} when Sum > 29.1 andalso Sum < 29.3, Value),
    ?_assertEqual({0, 0}, RValue)].
-
-call_cast_test() ->
-  prometheus_summary:declare([{name, cast}, {help, ""}]),
-  prometheus_summary:declare([{name, call}, {help, ""}, {call_timeout, 1000}]),
-  prometheus_summary:dobserve(cast, 1),
-  prometheus_summary:dobserve(call, 1),
-
-  ?assertEqual({1, 1}, prometheus_summary:value(cast)),
-  ?assertEqual({1, 1}, prometheus_summary:value(call)),
-
-  try
-    sys:suspend(prometheus_summary),
-
-    prometheus_summary:dobserve(cast, 1),
-    ?assertException(exit, {timeout, _}, prometheus_summary:dobserve(call, 1)),
-
-    ?assertEqual({1, 1}, prometheus_summary:value(cast)),
-    ?assertEqual({1, 1}, prometheus_summary:value(call))
-
-  after
-    sys:resume(prometheus_summary)
-  end,
-
-  %% wait for genserver
-  timer:sleep(10),
-
-  ?assertEqual({2, 2}, prometheus_summary:value(cast)),
-  ?assertEqual({2, 2}, prometheus_summary:value(call)).
 
 test_observe_duration_seconds(_) ->
   prometheus_summary:new([{name, <<"fun_duration_seconds">>},
@@ -197,6 +147,19 @@ test_observe_duration_milliseconds(_) ->
    ?_assertMatch(true, 900 < Sum andalso Sum < 1200),
    ?_assertMatch(true, 900 < SumE andalso SumE < 1200)].
 
+test_deregister(_) ->
+  prometheus_summary:new([{name, summary}, {labels, [pool]}, {help, ""}]),
+  prometheus_summary:new([{name, simple_summary}, {help, ""}]),
+
+  prometheus_summary:observe(summary, [mongodb], 1),
+  prometheus_summary:observe(simple_summary, 1),
+
+  [?_assertMatch({true, true}, prometheus_summary:deregister(summary)),
+   ?_assertMatch({false, false}, prometheus_summary:deregister(summary)),
+   ?_assertEqual(2, length(ets:tab2list(prometheus_summary_table))),
+   ?_assertEqual({1, 1}, prometheus_summary:value(simple_summary))
+  ].
+
 test_remove(_) ->
   prometheus_summary:new([{name, summary}, {labels, [pool]}, {help, ""}]),
   prometheus_summary:new([{name, simple_summary}, {help, ""}]),
@@ -225,9 +188,77 @@ test_remove(_) ->
    ?_assertEqual(false, RResult3),
    ?_assertEqual(false, RResult4)].
 
-test_undefined_value(_) ->
+test_default_value(_) ->
   prometheus_summary:new([{name, orders_summary},
                           {labels, [department]},
                           {help, "Track orders count/total sum"}]),
-  Value = prometheus_summary:value(orders_summary, [electronics]),
-  [?_assertEqual(undefined, Value)].
+  UndefinedValue = prometheus_summary:value(orders_summary, [electronics]),
+
+  prometheus_summary:new([{name, something_summary},
+                          {labels, []},
+                          {help, ""}]),
+  SomethingValue = prometheus_summary:value(something_summary),
+  [?_assertEqual(undefined, UndefinedValue),
+   ?_assertEqual({0, 0}, SomethingValue)].
+
+test_values(_) ->
+  prometheus_summary:new([{name, orders_summary},
+                          {labels, [department]},
+                          {help, "Track orders count/total sum"}]),
+  prometheus_summary:observe(orders_summary, [electronics], 765.5),
+  prometheus_summary:observe(orders_summary, [groceries], 112.3),
+
+  [?_assertEqual([{[{"department", electronics}], 1, 765.5},
+                  {[{"department", groceries}], 1, 112.3}],
+                 lists:sort(prometheus_summary:values(default, orders_summary)))].
+
+test_collector1(_) ->
+  prometheus_summary:new([{name, simple_summary},
+                          {labels, ["label"]},
+                          {help, ""}]),
+  prometheus_summary:observe(simple_summary, [label_value], 4),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               summary=#'Summary'{sample_count=1,
+                                                                  sample_sum=4}}]}],
+                 prometheus_collector:collect_mf_to_list(prometheus_summary))].
+
+
+test_collector2(_) ->
+  prometheus_summary:new([{name, simple_summary},
+                          {labels, ["label"]},
+                          {constant_labels, #{qwe => qwa}},
+                          {help, ""}]),
+  prometheus_summary:observe(simple_summary, [label_value], 5),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= <<"qwe">>,
+                                                                   value= <<"qwa">>},
+                                                      #'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               summary=#'Summary'{sample_count=1,
+                                                                  sample_sum=5}}]}],
+                 prometheus_collector:collect_mf_to_list(prometheus_summary))].
+
+
+test_collector3(_) ->
+  MFList = try
+    prometheus:start(),
+    application:set_env(prometheus, global_labels, [{node, node()}]),
+    prometheus_summary:new([{name, simple_summary},
+                            {labels, ["label"]},
+                            {help, ""}]),
+    prometheus_summary:observe(simple_summary, [label_value], 5),
+    prometheus_collector:collect_mf_to_list(prometheus_summary)
+  after
+    application:unset_env(prometheus, global_labels)
+  end,
+  NodeBin = atom_to_binary(node(), utf8),
+  [?_assertMatch([#'MetricFamily'{metric=
+                                    [#'Metric'{label=[#'LabelPair'{name= <<"node">>,
+                                                                   value= NodeBin},
+                                                      #'LabelPair'{name= "label",
+                                                                   value= <<"label_value">>}],
+                                               summary=#'Summary'{sample_count=1,
+                                                                  sample_sum=5}}]}],
+                 MFList)].

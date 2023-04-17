@@ -1,16 +1,10 @@
 ---
 name: ci
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+
+on: [push, pull_request]
 
 jobs:
-  ci:
-    name: Build & Test
+  run_checks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,5 +17,5 @@ jobs:
         with:
           otp-version: ${{matrix.otp}}
           rebar3-version: 3.20.0
-    - name: Run checks
-      run: ./bin/checks.sh
+      - name: Run checks
+        run: ./bin/checks.sh

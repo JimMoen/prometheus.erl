@@ -101,10 +101,15 @@ deregister_cleanup(_) -> ok.
 -spec collect_mf(_Registry, Callback) -> ok when
     _Registry :: prometheus_registry:registry(),
     Callback :: prometheus_collector:callback().
-collect_mf(_Registry, Callback) ->
+collect_mf(Registry, Callback) ->
+  EnabledMetrics = enabled_metrics(),
+  do_collect_mf(EnabledMetrics, Registry, Callback).
+
+do_collect_mf([], _Registry, _Callback) ->
+  ok;
+do_collect_mf(EnabledMetrics, _Registry, Callback) ->
   case mnesia_running() of
     true ->
-      EnabledMetrics = enabled_metrics(),
       Metrics = metrics(EnabledMetrics),
       [add_metric_family(Metric, Callback)
        || {Name, _, _, _}=Metric <- Metrics, metric_enabled(Name, EnabledMetrics)];

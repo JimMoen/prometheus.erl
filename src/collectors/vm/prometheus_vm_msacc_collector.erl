@@ -188,9 +188,14 @@ deregister_cleanup(_) -> ok.
     _Registry :: prometheus_registry:registry(),
     Callback :: prometheus_collector:callback().
 %% @private
-collect_mf(_Registry, Callback) ->
-  Metrics = metrics(),
+collect_mf(Registry, Callback) ->
   EnabledMetrics = enabled_metrics(),
+  do_collect_mf(EnabledMetrics, Registry, Callback).
+
+do_collect_mf([], _Registry, _Callback) ->
+  ok;
+do_collect_mf(EnabledMetrics, _Registry, Callback) ->
+  Metrics = metrics(),
   [add_metric_family(Metric, Callback)
    || {Name, _, _, _}=Metric <- Metrics, metric_enabled(Name, EnabledMetrics)],
   ok.
